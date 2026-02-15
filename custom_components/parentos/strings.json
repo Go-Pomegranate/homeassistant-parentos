@@ -1,0 +1,48 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to ParentOS",
+        "description": "Enter your ParentOS API URL and developer token. You can generate a token in ParentOS Settings → Developer Tokens.",
+        "data": {
+          "api_url": "API URL",
+          "api_token": "Developer Token (pt_...)"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Re-authenticate ParentOS",
+        "description": "Your developer token has expired. Please enter a new one.",
+        "data": {
+          "api_token": "Developer Token (pt_...)"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Invalid developer token or missing scopes",
+      "cannot_connect": "Cannot connect to ParentOS server",
+      "unknown": "Unexpected error occurred"
+    },
+    "abort": {
+      "already_configured": "This ParentOS family is already configured"
+    }
+  },
+  "entity": {
+    "sensor": {
+      "day_state": { "name": "Day State" },
+      "attention_needed": { "name": "Attention Needed" },
+      "events_today": { "name": "Events Today" },
+      "busy_minutes": { "name": "Busy Minutes" },
+      "conflict_count": { "name": "Calendar Conflicts" },
+      "next_event": { "name": "Next Event" },
+      "next_event_minutes": { "name": "Next Event In" },
+      "longest_free_slot": { "name": "Longest Free Slot" },
+      "family_pace": { "name": "Family Pace" },
+      "baseline_trend": { "name": "Pace Trend" },
+      "health_status": { "name": "Health Tracking" },
+      "medications_tracked": { "name": "Medications Tracked" },
+      "finance_engagement": { "name": "Finance Tracking" },
+      "tasks_overdue": { "name": "Overdue Tasks" },
+      "tasks_pending_today": { "name": "Tasks Today" }
+    }
+  }
+}

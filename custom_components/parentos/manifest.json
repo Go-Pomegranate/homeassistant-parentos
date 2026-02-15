@@ -1,0 +1,12 @@
+{
+  "domain": "parentos",
+  "name": "ParentOS",
+  "codeowners": ["@pantere"],
+  "config_flow": true,
+  "documentation": "https://github.com/pantere/homeassistant-parentos",
+  "integration_type": "hub",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/pantere/homeassistant-parentos/issues",
+  "requirements": ["aiohttp>=3.8.0"],
+  "version": "0.1.0"
+}
