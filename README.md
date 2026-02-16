@@ -22,7 +22,7 @@ All data is read-only. No personal health/financial details are exposed — only
 
 1. Open HACS in Home Assistant
 2. Click the three dots menu → **Custom repositories**
-3. Add `https://github.com/pantere/homeassistant-parentos` with category **Integration**
+3. Add `https://github.com/Go-Pomegranate/homeassistant-parentos` with category **Integration**
 4. Search for "ParentOS" and install
 5. Restart Home Assistant
 
