@@ -1,13 +1,14 @@
 """Calendar platform for ParentOS."""
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from homeassistant.components.calendar import CalendarEntity, CalendarEvent
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.util import dt as dt_util
 
 from . import ParentOSConfigEntry
 from .api import ParentOSApiClient
@@ -62,11 +63,9 @@ class ParentOSCalendar(CoordinatorEntity[ParentOSCoordinator], CalendarEntity):
         if not title or minutes is None:
             return None
 
-        now = datetime.now()
-        from datetime import timedelta
-
+        now = dt_util.now()
         start = now + timedelta(minutes=minutes)
-        end = start + timedelta(hours=1)  # Default 1h duration from snapshot
+        end = start + timedelta(hours=1)
 
         return CalendarEvent(
             summary=title,
