@@ -107,7 +107,7 @@ If you prefer a simpler setup without HACS, you can use HA's built-in REST integ
 
 ```yaml
 rest:
-  - resource: https://api.parentos.ai/api/ha/v1/snapshot
+  - resource: https://parentos.ai/api/ha/v1/snapshot
     scan_interval: 300
     headers:
       Authorization: "Bearer pt_YOUR_TOKEN"
