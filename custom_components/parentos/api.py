@@ -2,9 +2,12 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from typing import Any
 
 import aiohttp
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class ParentOSApiError(Exception):
@@ -73,15 +76,15 @@ class ParentOSApiClient:
                 )
         except asyncio.TimeoutError as err:
             raise ParentOSConnectionError("Request timed out") from err
-        except aiohttp.ClientError as err:
-            raise ParentOSConnectionError(f"Connection error: {err}") from err
+        except aiohttp.ClientError:
+            raise ParentOSConnectionError("Connection failed") from None
 
         if response.status == 401:
             raise ParentOSAuthError("Invalid or expired developer token")
         if response.status == 403:
             raise ParentOSAuthError("Token missing required scopes")
         if response.status >= 400:
-            text = await response.text()
-            raise ParentOSApiError(f"API error {response.status}: {text}")
+            _LOGGER.debug("API %s %s returned %s", method, path, response.status)
+            raise ParentOSApiError(f"API error (HTTP {response.status})")
 
         return await response.json()

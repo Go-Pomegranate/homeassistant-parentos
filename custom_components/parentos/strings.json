@@ -19,6 +19,7 @@
     },
     "error": {
       "invalid_auth": "Invalid developer token or missing scopes",
+      "invalid_url": "URL must be HTTPS and point to a public server",
       "cannot_connect": "Cannot connect to ParentOS server",
       "unknown": "Unexpected error occurred"
     },

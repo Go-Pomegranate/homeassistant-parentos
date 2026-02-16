@@ -97,6 +97,8 @@ automation:
 
 This integration only accesses **aggregate metadata** — event counts, status labels, and scores. No personal health records, financial transactions, or encrypted data is exposed. All communication uses developer tokens with scope-based access control.
 
+**Note:** Calendar event titles and locations are visible in the HA dashboard, state history, and automations. If your calendar contains sensitive entries (e.g. medical appointments), consider using ParentOS server-side calendar filters to control which events are shared via the HA API.
+
 ## RESTful Sensor Alternative
 
 If you prefer a simpler setup without HACS, you can use HA's built-in REST integration:
