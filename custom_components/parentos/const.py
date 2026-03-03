@@ -12,7 +12,7 @@ CONF_API_TOKEN = "api_token"
 
 # Defaults
 DEFAULT_SCAN_INTERVAL = 300  # 5 minutes
-DEFAULT_API_URL = "https://parentos.ai"
+DEFAULT_API_URL = "https://app.parentos.ai"
 
 # Day states (mapped from HA API)
 DAY_STATES = ["calm", "moderate", "busy", "full"]
