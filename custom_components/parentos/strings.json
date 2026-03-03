@@ -43,7 +43,8 @@
       "medications_tracked": { "name": "Medications Tracked" },
       "finance_engagement": { "name": "Finance Tracking" },
       "tasks_overdue": { "name": "Overdue Tasks" },
-      "tasks_pending_today": { "name": "Tasks Today" }
+      "tasks_pending_today": { "name": "Tasks Today" },
+      "meal_plan_today": { "name": "Meal Plan Today" }
     },
     "todo": {
       "shopping_list": { "name": "Shopping List" }

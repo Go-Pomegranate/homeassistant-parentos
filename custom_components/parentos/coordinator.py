@@ -27,13 +27,17 @@ class ParentOSCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.client = client
 
     async def _async_update_data(self) -> dict[str, Any]:
-        """Fetch snapshot and shopping lists from ParentOS API."""
+        """Fetch snapshot, shopping lists, meals, and family members."""
         try:
-            snapshot, shopping_lists = await asyncio.gather(
+            snapshot, shopping_lists, meals, members = await asyncio.gather(
                 self.client.async_get_snapshot(),
-                self._fetch_shopping_lists(),
+                self._safe_fetch("shopping_lists", self.client.async_get_shopping_lists, "lists"),
+                self._safe_fetch("meals_today", self.client.async_get_meals_today, "meals"),
+                self._safe_fetch("family_members", self.client.async_get_family_members, "members"),
             )
             snapshot["shopping_lists"] = shopping_lists
+            snapshot["meals_today"] = meals
+            snapshot["family_members"] = members
             return snapshot
         except ParentOSAuthError as err:
             raise ConfigEntryAuthFailed(
@@ -42,14 +46,16 @@ class ParentOSCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         except ParentOSApiError as err:
             raise UpdateFailed(f"Error fetching ParentOS data: {err}") from err
 
-    async def _fetch_shopping_lists(self) -> list[dict[str, Any]]:
-        """Fetch shopping lists, gracefully returning empty on scope errors."""
+    async def _safe_fetch(
+        self, name: str, fn: Any, key: str
+    ) -> list[dict[str, Any]]:
+        """Fetch optional data, gracefully returning empty on failures."""
         try:
-            result = await self.client.async_get_shopping_lists()
-            return result.get("lists", [])
+            result = await fn()
+            return result.get(key, [])
         except ParentOSAuthError:
-            LOGGER.debug("Token lacks meals:read scope, skipping shopping lists")
+            LOGGER.debug("Token lacks scope for %s, skipping", name)
             return []
-        except ParentOSApiError:
-            LOGGER.debug("Failed to fetch shopping lists")
+        except Exception:
+            LOGGER.debug("Failed to fetch %s", name)
             return []

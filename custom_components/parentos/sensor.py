@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 
 from homeassistant.components.sensor import (
@@ -11,13 +12,14 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.const import UnitOfTime
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import ParentOSConfigEntry
-from .const import ATTRIBUTION, DOMAIN
+from .const import ATTRIBUTION, DOMAIN, LOGGER
 from .coordinator import ParentOSCoordinator
 
 
@@ -173,10 +175,56 @@ async def async_setup_entry(
 ) -> None:
     """Set up ParentOS sensor entities."""
     coordinator: ParentOSCoordinator = entry.runtime_data
-    async_add_entities(
+
+    entities: list[SensorEntity] = [
         ParentOSSensor(coordinator, description, entry)
         for description in SENSOR_DESCRIPTIONS
-    )
+    ]
+
+    # Meal plan sensor (from coordinator.data["meals_today"])
+    entities.append(ParentOSMealPlanSensor(coordinator, entry))
+
+    # Family member sensors (one per member, with dynamic discovery)
+    initial_members = coordinator.data.get("family_members", [])
+    known_member_ids: set[int] = {m["id"] for m in initial_members}
+    for member in initial_members:
+        entities.append(ParentOSFamilyMemberSensor(coordinator, entry, member))
+
+    async_add_entities(entities)
+
+    # Dynamic family member discovery — auto-create/remove on coordinator updates
+    @callback
+    def _async_check_members() -> None:
+        current_members = coordinator.data.get("family_members", [])
+        if not current_members:
+            return  # safety guard against empty API response
+
+        current_ids = {m["id"] for m in current_members}
+
+        # New members
+        new_ids = current_ids - known_member_ids
+        if new_ids:
+            new_members = [m for m in current_members if m["id"] in new_ids]
+            known_member_ids.update(new_ids)
+            async_add_entities(
+                ParentOSFamilyMemberSensor(coordinator, entry, m)
+                for m in new_members
+            )
+            LOGGER.debug("Created %d new family member sensors", len(new_ids))
+
+        # Removed members
+        removed_ids = known_member_ids - current_ids
+        if removed_ids and current_ids:
+            ent_reg = er.async_get(hass)
+            for member_id in removed_ids:
+                unique_id = f"{entry.entry_id}_member_{member_id}"
+                entity_id = ent_reg.async_get_entity_id("sensor", DOMAIN, unique_id)
+                if entity_id:
+                    ent_reg.async_remove(entity_id)
+            known_member_ids.difference_update(removed_ids)
+            LOGGER.debug("Removed %d family member sensors", len(removed_ids))
+
+    entry.async_on_unload(coordinator.async_add_listener(_async_check_members))
 
 
 class ParentOSSensor(CoordinatorEntity[ParentOSCoordinator], SensorEntity):
@@ -219,3 +267,129 @@ class ParentOSSensor(CoordinatorEntity[ParentOSCoordinator], SensorEntity):
                 str(self.native_value), self.entity_description.icon or "mdi:help"
             )
         return self.entity_description.icon or "mdi:help"
+
+
+class ParentOSMealPlanSensor(CoordinatorEntity[ParentOSCoordinator], SensorEntity):
+    """Sensor showing today's meal plan."""
+
+    _attr_attribution = ATTRIBUTION
+    _attr_has_entity_name = True
+    _attr_name = "Meal Plan Today"
+    _attr_icon = "mdi:silverware-fork-knife"
+
+    def __init__(
+        self,
+        coordinator: ParentOSCoordinator,
+        entry: ParentOSConfigEntry,
+    ) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry.entry_id}_meal_plan_today"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, entry.entry_id)},
+            name="ParentOS",
+            manufacturer="ParentOS",
+            model="Family Hub",
+            entry_type=DeviceEntryType.SERVICE,
+            configuration_url="https://app.parentos.ai",
+        )
+
+    @property
+    def _meals(self) -> list[dict[str, Any]]:
+        if not self.coordinator.data:
+            return []
+        return self.coordinator.data.get("meals_today", [])
+
+    @property
+    def native_value(self) -> int:
+        """Return number of meals planned today."""
+        return len(self._meals)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return meal details as attributes."""
+        meals = self._meals
+        attrs: dict[str, Any] = {"meals_count": len(meals)}
+
+        for meal_type in ("breakfast", "lunch", "dinner", "snack"):
+            typed = [m for m in meals if m.get("type") == meal_type]
+            if typed:
+                attrs[meal_type] = ", ".join(m.get("name", "") for m in typed)
+            else:
+                attrs[meal_type] = None
+
+        # Next upcoming meal
+        now_hour = datetime.now().hour
+        order = {"breakfast": 8, "lunch": 12, "dinner": 18, "snack": 15}
+        upcoming = [
+            m for m in meals
+            if order.get(m.get("type", ""), 24) >= now_hour
+        ]
+        attrs["next_meal"] = upcoming[0].get("name") if upcoming else None
+
+        return attrs
+
+
+class ParentOSFamilyMemberSensor(CoordinatorEntity[ParentOSCoordinator], SensorEntity):
+    """Sensor for a single family member's status."""
+
+    _attr_attribution = ATTRIBUTION
+    _attr_has_entity_name = True
+
+    def __init__(
+        self,
+        coordinator: ParentOSCoordinator,
+        entry: ParentOSConfigEntry,
+        member: dict[str, Any],
+    ) -> None:
+        super().__init__(coordinator)
+        self._member_id: int = member["id"]
+        member_name = member.get("name", f"Member {self._member_id}")
+        self._attr_name = member_name
+        self._attr_unique_id = f"{entry.entry_id}_member_{self._member_id}"
+        self._attr_icon = (
+            "mdi:account-child" if member.get("role") == "child"
+            else "mdi:account"
+        )
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, entry.entry_id)},
+            name="ParentOS",
+            manufacturer="ParentOS",
+            model="Family Hub",
+            entry_type=DeviceEntryType.SERVICE,
+            configuration_url="https://app.parentos.ai",
+        )
+
+    @property
+    def _member_data(self) -> dict[str, Any] | None:
+        if not self.coordinator.data:
+            return None
+        for m in self.coordinator.data.get("family_members", []):
+            if m.get("id") == self._member_id:
+                return m
+        return None
+
+    @property
+    def native_value(self) -> str | None:
+        """Return member status (healthy, sick, etc.)."""
+        member = self._member_data
+        return member.get("status", "unknown") if member else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return member details as attributes."""
+        member = self._member_data
+        if not member:
+            return {}
+        return {
+            "role": member.get("role"),
+            "age": member.get("age"),
+            "picture": member.get("picture"),
+        }
+
+    @property
+    def entity_picture(self) -> str | None:
+        """Return member avatar."""
+        member = self._member_data
+        if member:
+            return member.get("picture")
+        return None

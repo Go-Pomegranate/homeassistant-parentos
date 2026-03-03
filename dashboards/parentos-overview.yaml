@@ -1,0 +1,217 @@
+# ParentOS Family Dashboard — Native HA Cards
+# Copy this into your Home Assistant dashboard (Raw Configuration Editor)
+#
+# Prerequisites: ParentOS integration installed and configured
+# Optional: Install "auto-entities" from HACS for dynamic card filtering
+#
+# Entity prefix: sensor.parentos_*
+# Calendar: calendar.parentos_family_calendar
+# Shopping: todo.parentos_* (dynamic per list)
+# Family: sensor.parentos_{member_name} (dynamic per member)
+
+title: ParentOS
+views:
+  - title: Family Overview
+    path: parentos
+    icon: mdi:home-heart
+    type: sections
+    max_columns: 3
+    sections:
+      # ============================================================
+      # SECTION 1: Day Status & Alerts
+      # ============================================================
+      - title: Day Status
+        type: grid
+        cards:
+          # Attention alert — only shows when True
+          - type: conditional
+            conditions:
+              - condition: state
+                entity: sensor.parentos_attention_needed
+                state: "True"
+            card:
+              type: tile
+              entity: sensor.parentos_attention_needed
+              color: red
+              icon: mdi:alert-circle
+              name: Attention Needed
+
+          # Day State — main indicator
+          - type: tile
+            entity: sensor.parentos_day_state
+            name: Day State
+            icon: mdi:weather-sunny
+            color: >-
+              {% set s = states('sensor.parentos_day_state') %}
+              {% if s == 'calm' %}green
+              {% elif s == 'moderate' %}amber
+              {% elif s == 'busy' %}orange
+              {% elif s == 'full' %}red
+              {% else %}grey{% endif %}
+
+          # Family Pace
+          - type: tile
+            entity: sensor.parentos_family_pace
+            name: Family Pace
+            icon: mdi:speedometer-medium
+
+          # Pace Trend
+          - type: tile
+            entity: sensor.parentos_baseline_trend
+            name: Pace Trend
+            icon: >-
+              {% set t = states('sensor.parentos_baseline_trend') %}
+              {% if t == 'up' %}mdi:trending-up
+              {% elif t == 'down' %}mdi:trending-down
+              {% else %}mdi:trending-neutral{% endif %}
+
+      # ============================================================
+      # SECTION 2: Calendar
+      # ============================================================
+      - title: Calendar
+        type: grid
+        cards:
+          # Calendar card (native)
+          - type: calendar
+            entities:
+              - calendar.parentos_family_calendar
+
+          # Stats row
+          - type: horizontal-stack
+            cards:
+              - type: tile
+                entity: sensor.parentos_events_today
+                name: Events
+                icon: mdi:calendar-today
+                color: blue
+
+              - type: tile
+                entity: sensor.parentos_busy_minutes
+                name: Busy Time
+                icon: mdi:clock-outline
+                color: orange
+
+              - type: tile
+                entity: sensor.parentos_conflict_count
+                name: Conflicts
+                icon: mdi:calendar-alert
+                color: >-
+                  {% if states('sensor.parentos_conflict_count') | int > 0 %}red
+                  {% else %}green{% endif %}
+
+          # Next Event
+          - type: entity
+            entity: sensor.parentos_next_event
+            name: Next Event
+            icon: mdi:calendar-arrow-right
+
+          - type: entity
+            entity: sensor.parentos_next_event_minutes
+            name: Starts In
+            icon: mdi:timer-outline
+
+          # Free slot
+          - type: entity
+            entity: sensor.parentos_longest_free_slot
+            name: Longest Free Slot
+            icon: mdi:calendar-blank-outline
+
+      # ============================================================
+      # SECTION 3: Tasks & Health & Finance
+      # ============================================================
+      - title: Tasks & Wellbeing
+        type: grid
+        cards:
+          # Tasks
+          - type: horizontal-stack
+            cards:
+              - type: tile
+                entity: sensor.parentos_tasks_overdue
+                name: Overdue
+                icon: mdi:clipboard-alert-outline
+                color: >-
+                  {% if states('sensor.parentos_tasks_overdue') | int > 0 %}red
+                  {% else %}green{% endif %}
+
+              - type: tile
+                entity: sensor.parentos_tasks_pending_today
+                name: Today
+                icon: mdi:clipboard-list-outline
+                color: blue
+
+          # Health
+          - type: tile
+            entity: sensor.parentos_health_status
+            name: Health Tracking
+            icon: mdi:heart-pulse
+            color: pink
+
+          - type: tile
+            entity: sensor.parentos_medications_tracked
+            name: Medications
+            icon: mdi:pill
+            color: teal
+
+          # Finance
+          - type: tile
+            entity: sensor.parentos_finance_engagement
+            name: Finance Tracking
+            icon: mdi:cash-check
+            color: green
+
+      # ============================================================
+      # SECTION 4: Meal Plan
+      # ============================================================
+      - title: Meal Plan
+        type: grid
+        cards:
+          - type: tile
+            entity: sensor.parentos_meal_plan_today
+            name: Meals Planned
+            icon: mdi:silverware-fork-knife
+            color: amber
+
+          - type: markdown
+            title: Today's Menu
+            content: >-
+              {% set m = state_attr('sensor.parentos_meal_plan_today', 'breakfast') %}
+              {% set l = state_attr('sensor.parentos_meal_plan_today', 'lunch') %}
+              {% set d = state_attr('sensor.parentos_meal_plan_today', 'dinner') %}
+              {% set s = state_attr('sensor.parentos_meal_plan_today', 'snack') %}
+              {% if m %}**Breakfast:** {{ m }}{% endif %}
+              {% if l %}**Lunch:** {{ l }}{% endif %}
+              {% if d %}**Dinner:** {{ d }}{% endif %}
+              {% if s %}**Snack:** {{ s }}{% endif %}
+              {% if not m and not l and not d and not s %}
+              *No meals planned for today*
+              {% endif %}
+
+      # ============================================================
+      # SECTION 5: Shopping Lists
+      # ============================================================
+      # NOTE: Shopping lists are created dynamically based on your
+      # ParentOS lists. Replace "todo.parentos_LISTNAME" with your
+      # actual entity IDs. Check Developer Tools → States for names.
+      - title: Shopping
+        type: grid
+        cards:
+          - type: todo-list
+            entity: todo.parentos_grocery_list
+            # Replace with your actual shopping list entity ID
+
+      # ============================================================
+      # SECTION 6: Family Members
+      # ============================================================
+      # NOTE: Family member sensors are created dynamically.
+      # Replace entity IDs below with your actual family members.
+      # Check Developer Tools → States → filter "parentos_member"
+      - title: Family
+        type: grid
+        cards:
+          - type: markdown
+            title: Family Members
+            content: >-
+              Check **Developer Tools → States** and filter for
+              `sensor.parentos_` to find your family member entities.
+              Replace the placeholder cards below with tile cards
+              for each member.

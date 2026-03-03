@@ -1,0 +1,290 @@
+# ParentOS Family Dashboard — Mushroom Cards Edition
+# Copy this into your Home Assistant dashboard (Raw Configuration Editor)
+#
+# Prerequisites:
+#   - ParentOS integration installed and configured
+#   - Mushroom cards (HACS): https://github.com/piitaya/lovelace-mushroom
+#   - Optional: card-mod (HACS) for advanced styling
+#
+# Entity prefix: sensor.parentos_*
+# Calendar: calendar.parentos_family_calendar
+# Shopping: todo.parentos_* (dynamic per list)
+# Family: sensor.parentos_{member_name} (dynamic per member)
+
+title: ParentOS
+views:
+  - title: Family Overview
+    path: parentos
+    icon: mdi:home-heart
+    type: sections
+    max_columns: 3
+    sections:
+      # ============================================================
+      # SECTION 1: Family Pulse
+      # ============================================================
+      - title: ""
+        type: grid
+        cards:
+          # Alert banner — conditional
+          - type: conditional
+            conditions:
+              - condition: state
+                entity: sensor.parentos_attention_needed
+                state: "True"
+            card:
+              type: custom:mushroom-chips-card
+              chips:
+                - type: entity
+                  entity: sensor.parentos_attention_needed
+                  icon: mdi:alert-circle
+                  icon_color: red
+                  content: Attention Needed
+              alignment: center
+
+          # Day State — Hero card
+          - type: custom:mushroom-template-card
+            primary: >-
+              {% set s = states('sensor.parentos_day_state') %}
+              {% if s == 'calm' %}Calm Day
+              {% elif s == 'moderate' %}Moderate Day
+              {% elif s == 'busy' %}Busy Day
+              {% elif s == 'full' %}Full Day
+              {% else %}{{ s | title }}{% endif %}
+            secondary: >-
+              {{ states('sensor.parentos_events_today') }} events ·
+              {{ (states('sensor.parentos_busy_minutes') | int / 60) | round(1) }}h busy ·
+              Pace: {{ states('sensor.parentos_family_pace') }}
+              {% if states('sensor.parentos_baseline_trend') == 'up' %} ↑
+              {% elif states('sensor.parentos_baseline_trend') == 'down' %} ↓
+              {% else %} →{% endif %}
+            icon: >-
+              {% set s = states('sensor.parentos_day_state') %}
+              {% if s == 'calm' %}mdi:weather-sunny
+              {% elif s == 'moderate' %}mdi:weather-partly-cloudy
+              {% elif s == 'busy' %}mdi:weather-cloudy
+              {% elif s == 'full' %}mdi:weather-lightning
+              {% else %}mdi:help-circle{% endif %}
+            icon_color: >-
+              {% set s = states('sensor.parentos_day_state') %}
+              {% if s == 'calm' %}green
+              {% elif s == 'moderate' %}amber
+              {% elif s == 'busy' %}orange
+              {% elif s == 'full' %}red
+              {% else %}grey{% endif %}
+            layout: horizontal
+            badge_icon: >-
+              {% if states('sensor.parentos_conflict_count') | int > 0 %}mdi:alert{% endif %}
+            badge_color: red
+            tap_action:
+              action: more-info
+              entity: sensor.parentos_day_state
+
+          # Chips row — quick stats
+          - type: custom:mushroom-chips-card
+            chips:
+              - type: entity
+                entity: sensor.parentos_family_pace
+                icon: mdi:speedometer-medium
+                icon_color: >-
+                  {% set p = states('sensor.parentos_family_pace') %}
+                  {% if p == 'slow' %}green
+                  {% elif p == 'medium' %}amber
+                  {% elif p == 'fast' %}red
+                  {% else %}grey{% endif %}
+
+              - type: entity
+                entity: sensor.parentos_baseline_trend
+                icon: >-
+                  {% set t = states('sensor.parentos_baseline_trend') %}
+                  {% if t == 'up' %}mdi:trending-up
+                  {% elif t == 'down' %}mdi:trending-down
+                  {% else %}mdi:trending-neutral{% endif %}
+                icon_color: >-
+                  {% set t = states('sensor.parentos_baseline_trend') %}
+                  {% if t == 'up' %}red
+                  {% elif t == 'down' %}green
+                  {% else %}grey{% endif %}
+
+              - type: entity
+                entity: sensor.parentos_conflict_count
+                icon: mdi:calendar-alert
+                icon_color: >-
+                  {% if states('sensor.parentos_conflict_count') | int > 0 %}red
+                  {% else %}green{% endif %}
+
+              - type: entity
+                entity: sensor.parentos_tasks_overdue
+                icon: mdi:clipboard-alert
+                icon_color: >-
+                  {% if states('sensor.parentos_tasks_overdue') | int > 0 %}red
+                  {% else %}green{% endif %}
+            alignment: center
+
+      # ============================================================
+      # SECTION 2: Calendar & Schedule
+      # ============================================================
+      - title: Calendar
+        type: grid
+        cards:
+          # Calendar widget
+          - type: calendar
+            entities:
+              - calendar.parentos_family_calendar
+
+          # Next Event — prominent
+          - type: custom:mushroom-template-card
+            primary: "{{ states('sensor.parentos_next_event') }}"
+            secondary: >-
+              {% set m = states('sensor.parentos_next_event_minutes') | int(0) %}
+              {% if m > 60 %}In {{ (m / 60) | round(0) | int }}h {{ m % 60 }}min
+              {% elif m > 0 %}In {{ m }} min
+              {% else %}Now{% endif %}
+            icon: mdi:calendar-clock
+            icon_color: blue
+            layout: horizontal
+            tap_action:
+              action: more-info
+              entity: sensor.parentos_next_event
+
+          # Calendar numbers
+          - type: custom:mushroom-chips-card
+            chips:
+              - type: template
+                icon: mdi:calendar-today
+                icon_color: blue
+                content: "{{ states('sensor.parentos_events_today') }} events"
+
+              - type: template
+                icon: mdi:clock-outline
+                icon_color: orange
+                content: >-
+                  {% set m = states('sensor.parentos_busy_minutes') | int(0) %}
+                  {{ (m / 60) | round(1) }}h busy
+
+              - type: template
+                icon: mdi:calendar-blank-outline
+                icon_color: green
+                content: >-
+                  {% set m = states('sensor.parentos_longest_free_slot') %}
+                  {% if m == 'Unknown' or m == 'unknown' %}No free slot
+                  {% else %}{{ (m | int / 60) | round(1) }}h free{% endif %}
+            alignment: center
+
+      # ============================================================
+      # SECTION 3: Tasks
+      # ============================================================
+      - title: Tasks
+        type: grid
+        cards:
+          - type: horizontal-stack
+            cards:
+              - type: custom:mushroom-template-card
+                primary: "{{ states('sensor.parentos_tasks_overdue') }}"
+                secondary: Overdue
+                icon: mdi:clipboard-alert-outline
+                icon_color: >-
+                  {% if states('sensor.parentos_tasks_overdue') | int > 0 %}red
+                  {% else %}green{% endif %}
+                layout: vertical
+                tap_action:
+                  action: more-info
+                  entity: sensor.parentos_tasks_overdue
+
+              - type: custom:mushroom-template-card
+                primary: "{{ states('sensor.parentos_tasks_pending_today') }}"
+                secondary: Today
+                icon: mdi:clipboard-list-outline
+                icon_color: blue
+                layout: vertical
+                tap_action:
+                  action: more-info
+                  entity: sensor.parentos_tasks_pending_today
+
+      # ============================================================
+      # SECTION 4: Wellbeing & Finance
+      # ============================================================
+      - title: Wellbeing
+        type: grid
+        cards:
+          - type: custom:mushroom-entity-card
+            entity: sensor.parentos_health_status
+            name: Health Tracking
+            icon: mdi:heart-pulse
+            icon_color: pink
+            layout: horizontal
+
+          - type: custom:mushroom-entity-card
+            entity: sensor.parentos_medications_tracked
+            name: Medications
+            icon: mdi:pill
+            icon_color: teal
+            layout: horizontal
+
+          - type: custom:mushroom-entity-card
+            entity: sensor.parentos_finance_engagement
+            name: Finance Tracking
+            icon: mdi:cash-check
+            icon_color: green
+            layout: horizontal
+
+      # ============================================================
+      # SECTION 5: Meal Plan
+      # ============================================================
+      - title: Meals
+        type: grid
+        cards:
+          - type: custom:mushroom-template-card
+            primary: >-
+              {% set c = states('sensor.parentos_meal_plan_today') | int(0) %}
+              {% if c == 0 %}No meals planned
+              {% elif c == 1 %}1 meal planned
+              {% else %}{{ c }} meals planned{% endif %}
+            secondary: >-
+              {% set next = state_attr('sensor.parentos_meal_plan_today', 'next_meal') %}
+              {% if next %}Next: {{ next }}{% else %}Plan your day{% endif %}
+            icon: mdi:silverware-fork-knife
+            icon_color: amber
+            layout: horizontal
+            tap_action:
+              action: more-info
+              entity: sensor.parentos_meal_plan_today
+
+          - type: markdown
+            content: >-
+              {% set b = state_attr('sensor.parentos_meal_plan_today', 'breakfast') %}
+              {% set l = state_attr('sensor.parentos_meal_plan_today', 'lunch') %}
+              {% set d = state_attr('sensor.parentos_meal_plan_today', 'dinner') %}
+              {% set s = state_attr('sensor.parentos_meal_plan_today', 'snack') %}
+              | Meal | Menu |
+              |------|------|
+              | Breakfast | {{ b if b else '—' }} |
+              | Lunch | {{ l if l else '—' }} |
+              | Dinner | {{ d if d else '—' }} |
+              {% if s %}| Snack | {{ s }} |{% endif %}
+
+      # ============================================================
+      # SECTION 6: Shopping Lists
+      # ============================================================
+      # NOTE: Replace entity ID with your actual shopping list.
+      # Check Developer Tools → States → filter "todo.parentos"
+      - title: Shopping
+        type: grid
+        cards:
+          - type: todo-list
+            entity: todo.parentos_grocery_list
+
+      # ============================================================
+      # SECTION 7: Family Members
+      # ============================================================
+      # NOTE: Family member sensors are dynamic — one per member.
+      # Replace entity IDs below with your actual members.
+      # Check Developer Tools → States → filter "sensor.parentos"
+      # Example for a family with 2 parents + 2 kids:
+      - title: Family
+        type: grid
+        cards:
+          - type: markdown
+            content: >-
+              **Tip:** Replace this card with `mushroom-person-card` entries
+              for each family member. Your member entities are listed in
+              **Developer Tools → States** (filter: `sensor.parentos_`).

@@ -94,6 +94,18 @@ class ParentOSApiClient:
             "DELETE", "/shopping/items", json_data={"uids": uids}
         )
 
+    # ── Meals endpoints ────────────────────────────────────────────────
+
+    async def async_get_meals_today(self) -> dict[str, Any]:
+        """Get today's meal plan."""
+        return await self._request("GET", "/meals/today")
+
+    # ── Family members endpoints ─────────────────────────────────────
+
+    async def async_get_family_members(self) -> dict[str, Any]:
+        """Get family members with status."""
+        return await self._request("GET", "/family/members")
+
     # ── HTTP transport ───────────────────────────────────────────────────
 
     async def _request(
