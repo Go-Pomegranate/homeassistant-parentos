@@ -1,6 +1,7 @@
 # ParentOS for Home Assistant
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
+[![GitHub Release](https://img.shields.io/github/v/release/Go-Pomegranate/homeassistant-parentos)](https://github.com/Go-Pomegranate/homeassistant-parentos/releases)
 
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Go-Pomegranate&repository=homeassistant-parentos&category=integration)
 
@@ -10,13 +11,16 @@ Custom integration that brings your [ParentOS](https://parentos.ai) family data 
 
 - **Day State** — family day status (calm / moderate / busy / full)
 - **Calendar** — native HA calendar entity with all family events
-- **Energy** — per-member energy levels and mood
+- **Shopping Lists** — full todo entities with add, check off, and delete support
+- **Meal Plan** — today's planned meals with breakfast/lunch/dinner/snack breakdown
+- **Family Members** — per-member sensors with status, role, age, and avatar
 - **Tasks** — overdue and pending task counts
 - **Health** — medication tracking status (metadata only, no PII)
 - **Finance** — tracking engagement status (metadata only, no PII)
-- **Baseline** — family pace trend over time
+- **Baseline** — family pace and trend over time
+- **Dashboard Templates** — ready-made YAML dashboards (native + Mushroom cards)
 
-All data is read-only. No personal health/financial details are exposed — only aggregate metadata and counts.
+Shopping lists and family members are **dynamic** — new lists/members appear automatically, deleted ones are removed. No restart needed.
 
 ## Installation
 
@@ -36,35 +40,66 @@ All data is read-only. No personal health/financial details are exposed — only
 ## Setup
 
 1. In ParentOS, go to **Settings → Developer Tokens** and create a token with these scopes:
-   - `wellness:read`
-   - `family:read`
-   - `calendar:read`
+   - `wellness:read` — day state, energy, health, baseline
+   - `family:read` — family members, tasks
+   - `calendar:read` — calendar events
+   - `meals:read` — shopping lists, meal plan
+   - `meals:write` — shopping list CRUD (add/edit/delete items)
 2. In Home Assistant, go to **Settings → Devices & Services → Add Integration**
 3. Search for **ParentOS**
 4. Enter your API URL and developer token (`pt_...`)
 
-## Sensors
+## Entities
 
-| Sensor | Description | Unit |
-|--------|-------------|------|
+### Sensors
+
+| Entity ID | Description | Unit |
+|-----------|-------------|------|
 | `sensor.parentos_day_state` | Family day state | calm/moderate/busy/full |
-| `sensor.parentos_events_today` | Number of events today | count |
+| `sensor.parentos_attention_needed` | Attention needed flag | True/False |
+| `sensor.parentos_events_today` | Events today | count |
 | `sensor.parentos_busy_minutes` | Busy minutes today | min |
-| `sensor.parentos_next_event` | Next event title | — |
-| `sensor.parentos_next_event_minutes` | Minutes until next event | min |
+| `sensor.parentos_next_event` | Next event title | text |
+| `sensor.parentos_next_event_in` | Minutes until next event | min |
 | `sensor.parentos_longest_free_slot` | Longest free slot | min |
-| `sensor.parentos_conflict_count` | Calendar conflicts | count |
-| `sensor.parentos_family_pace` | Family pace baseline | slow/medium/fast |
-| `sensor.parentos_baseline_trend` | Pace trend direction | up/down/stable |
-| `sensor.parentos_health_status` | Health tracking status | — |
+| `sensor.parentos_calendar_conflicts` | Calendar conflicts | count |
+| `sensor.parentos_family_pace` | Family pace | slow/medium/fast |
+| `sensor.parentos_pace_trend` | Pace trend direction | up/down/stable |
+| `sensor.parentos_health_tracking` | Health tracking status | active/not_started |
 | `sensor.parentos_medications_tracked` | Medications tracked | count |
-| `sensor.parentos_finance_engagement` | Finance tracking status | — |
-| `sensor.parentos_tasks_overdue` | Overdue tasks | count |
-| `sensor.parentos_tasks_pending_today` | Tasks due today | count |
+| `sensor.parentos_finance_tracking` | Finance tracking status | active/basic/not_started |
+| `sensor.parentos_overdue_tasks` | Overdue tasks | count |
+| `sensor.parentos_tasks_today` | Tasks due today | count |
+| `sensor.parentos_meal_plan_today` | Meals planned today | count |
 
-## Calendar
+The **Meal Plan** sensor has extra attributes: `breakfast`, `lunch`, `dinner`, `snack`, `next_meal`.
 
-The integration creates a native `calendar.parentos_family_calendar` entity that shows all family events from ParentOS. Works with HA calendar card and automations.
+### Calendar
+
+`calendar.parentos_family_calendar` — native HA calendar with all family events. Works with calendar card and automations.
+
+### Shopping Lists (Todo)
+
+`todo.parentos_{list_name}` — one entity per active shopping list. Supports:
+- Add items from HA todo card
+- Check off / uncheck items
+- Delete items
+- Item descriptions (quantity, category, store, notes)
+
+### Family Members
+
+`sensor.parentos_{member_name}` — one sensor per family member. State shows health status. Attributes: `role`, `age`, `picture`.
+
+## Dashboard Templates
+
+Ready-made dashboard YAML files are in the `dashboards/` directory:
+
+| File | Description | Requirements |
+|------|-------------|--------------|
+| `parentos-overview.yaml` | Native HA cards | None |
+| `parentos-mushroom.yaml` | Mushroom cards | [Mushroom](https://github.com/piitaya/lovelace-mushroom) (HACS) |
+
+**To use:** Open your dashboard → Edit → Raw Configuration Editor → paste the YAML content.
 
 ## Automation Examples
 
@@ -93,6 +128,23 @@ automation:
         data:
           brightness_pct: 40
           color_temp_kelvin: 2700
+
+# Remind about shopping when leaving home
+automation:
+  - trigger:
+      - platform: zone
+        entity_id: person.you
+        zone: zone.home
+        event: leave
+    condition:
+      - condition: numeric_state
+        entity_id: todo.parentos_grocery_list
+        attribute: incomplete_count
+        above: 0
+    action:
+      - service: notify.mobile_app
+        data:
+          message: "You have items on your grocery list!"
 ```
 
 ## Privacy
@@ -107,7 +159,7 @@ If you prefer a simpler setup without HACS, you can use HA's built-in REST integ
 
 ```yaml
 rest:
-  - resource: https://parentos.ai/api/ha/v1/snapshot
+  - resource: https://app.parentos.ai/api/ha/v1/snapshot
     scan_interval: 300
     headers:
       Authorization: "Bearer pt_YOUR_TOKEN"
