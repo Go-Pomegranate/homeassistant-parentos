@@ -19,8 +19,11 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import ParentOSConfigEntry
+from .api import ParentOSApiError
 from .const import ATTRIBUTION, DOMAIN, LOGGER
 from .coordinator import ParentOSCoordinator
+
+_MAX_SHOPPING_LISTS = 30
 
 
 async def async_setup_entry(
@@ -30,7 +33,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up ParentOS todo entities from shopping lists."""
     coordinator: ParentOSCoordinator = entry.runtime_data
-    shopping_lists = coordinator.data.get("shopping_lists", [])
+    shopping_lists = coordinator.data.get("shopping_lists", [])[:_MAX_SHOPPING_LISTS]
 
     known_list_ids: set[int] = {sl["id"] for sl in shopping_lists}
 
@@ -47,6 +50,14 @@ async def async_setup_entry(
         # Safety guard: don't mass-delete if API returned empty
         if not current_lists:
             return
+
+        # Cap to prevent entity flooding
+        if len(current_lists) > _MAX_SHOPPING_LISTS:
+            LOGGER.warning(
+                "API returned %d shopping lists, capping at %d",
+                len(current_lists), _MAX_SHOPPING_LISTS,
+            )
+            current_lists = current_lists[:_MAX_SHOPPING_LISTS]
 
         current_ids = {sl["id"] for sl in current_lists}
 
@@ -159,14 +170,21 @@ class ParentOSShoppingList(
                 summary=item.summary,
                 description=item.description,
             )
-        except Exception as err:
+        except ParentOSApiError as err:
             raise HomeAssistantError(f"Failed to create item: {err}") from err
+        except Exception as err:
+            raise HomeAssistantError("Failed to create item") from err
         await self._async_refresh_items()
 
     async def async_update_todo_item(self, item: TodoItem) -> None:
         """Update an existing shopping list item."""
         if not item.uid:
             return
+        try:
+            item_id = int(item.uid)
+        except (ValueError, TypeError) as err:
+            raise HomeAssistantError(f"Invalid item UID: {item.uid}") from err
+
         data: dict = {}
         if item.summary is not None:
             data["summary"] = item.summary
@@ -182,10 +200,12 @@ class ParentOSShoppingList(
             return
         try:
             await self.coordinator.client.async_update_shopping_item(
-                int(item.uid), **data
+                item_id, **data
             )
-        except Exception as err:
+        except ParentOSApiError as err:
             raise HomeAssistantError(f"Failed to update item: {err}") from err
+        except Exception as err:
+            raise HomeAssistantError("Failed to update item") from err
         await self._async_refresh_items()
 
     async def async_delete_todo_items(self, uids: list[str]) -> None:
@@ -194,6 +214,8 @@ class ParentOSShoppingList(
             return
         try:
             await self.coordinator.client.async_delete_shopping_items(uids)
-        except Exception as err:
+        except ParentOSApiError as err:
             raise HomeAssistantError(f"Failed to delete items: {err}") from err
+        except Exception as err:
+            raise HomeAssistantError("Failed to delete items") from err
         await self._async_refresh_items()

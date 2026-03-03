@@ -22,6 +22,8 @@ from . import ParentOSConfigEntry
 from .const import ATTRIBUTION, DOMAIN, LOGGER
 from .coordinator import ParentOSCoordinator
 
+_MAX_DYNAMIC_ENTITIES = 30
+
 
 @dataclass(frozen=True, kw_only=True)
 class ParentOSSensorDescription(SensorEntityDescription):
@@ -185,7 +187,8 @@ async def async_setup_entry(
     entities.append(ParentOSMealPlanSensor(coordinator, entry))
 
     # Family member sensors (one per member, with dynamic discovery)
-    initial_members = coordinator.data.get("family_members", [])
+    # Cap at 30 to prevent entity flooding from a compromised API
+    initial_members = coordinator.data.get("family_members", [])[:_MAX_DYNAMIC_ENTITIES]
     known_member_ids: set[int] = {m["id"] for m in initial_members}
     for member in initial_members:
         entities.append(ParentOSFamilyMemberSensor(coordinator, entry, member))
@@ -198,6 +201,14 @@ async def async_setup_entry(
         current_members = coordinator.data.get("family_members", [])
         if not current_members:
             return  # safety guard against empty API response
+
+        # Cap to prevent entity flooding
+        if len(current_members) > _MAX_DYNAMIC_ENTITIES:
+            LOGGER.warning(
+                "API returned %d members, capping at %d",
+                len(current_members), _MAX_DYNAMIC_ENTITIES,
+            )
+            current_members = current_members[:_MAX_DYNAMIC_ENTITIES]
 
         current_ids = {m["id"] for m in current_members}
 
@@ -343,7 +354,7 @@ class ParentOSFamilyMemberSensor(CoordinatorEntity[ParentOSCoordinator], SensorE
     ) -> None:
         super().__init__(coordinator)
         self._member_id: int = member["id"]
-        member_name = member.get("name", f"Member {self._member_id}")
+        member_name = member.get("name", f"Member {self._member_id}")[:100]
         self._attr_name = member_name
         self._attr_unique_id = f"{entry.entry_id}_member_{self._member_id}"
         self._attr_icon = (
@@ -388,8 +399,10 @@ class ParentOSFamilyMemberSensor(CoordinatorEntity[ParentOSCoordinator], SensorE
 
     @property
     def entity_picture(self) -> str | None:
-        """Return member avatar."""
+        """Return member avatar (HTTPS only to prevent tracking/MITM)."""
         member = self._member_data
         if member:
-            return member.get("picture")
+            url = member.get("picture")
+            if url and isinstance(url, str) and url.startswith("https://"):
+                return url
         return None
