@@ -249,7 +249,7 @@ views:
               entity: sensor.parentos_meal_plan_today
 
           - type: markdown
-            content: >-
+            content: |-
               {% set b = state_attr('sensor.parentos_meal_plan_today', 'breakfast') %}
               {% set l = state_attr('sensor.parentos_meal_plan_today', 'lunch') %}
               {% set d = state_attr('sensor.parentos_meal_plan_today', 'dinner') %}

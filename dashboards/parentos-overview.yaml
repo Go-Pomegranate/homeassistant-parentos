@@ -172,7 +172,7 @@ views:
 
           - type: markdown
             title: Today's Menu
-            content: >-
+            content: |-
               {% set m = state_attr('sensor.parentos_meal_plan_today', 'breakfast') %}
               {% set l = state_attr('sensor.parentos_meal_plan_today', 'lunch') %}
               {% set d = state_attr('sensor.parentos_meal_plan_today', 'dinner') %}
