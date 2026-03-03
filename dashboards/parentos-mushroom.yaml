@@ -386,52 +386,52 @@ views:
                     role: "admin"
                   options:
                     type: custom:mushroom-template-card
-                    primary: "{{ state_attr(config.entity, 'friendly_name') }}"
+                    entity: this.entity_id
+                    primary: "{{ state_attr('this.entity_id', 'friendly_name') | replace('ParentOS ', '') }}"
                     secondary: >-
-                      {{ states(config.entity) | title }}
-                      {% if state_attr(config.entity, 'age') %}
-                      · Age {{ state_attr(config.entity, 'age') }}{% endif %}
+                      {{ states('this.entity_id') | title }}
+                      {% if state_attr('this.entity_id', 'age') %}
+                      · Age {{ state_attr('this.entity_id', 'age') }}{% endif %}
                     icon: mdi:shield-account
                     icon_color: >-
-                      {% if states(config.entity) == 'healthy' %}green
-                      {% elif states(config.entity) == 'sick' %}red
+                      {% if states('this.entity_id') == 'healthy' %}green
+                      {% elif states('this.entity_id') == 'sick' %}red
                       {% else %}grey{% endif %}
                     layout: horizontal
-                    entity: this.entity_id
                 - entity_id: "sensor.parentos_*"
                   attributes:
                     role: "parent"
                   options:
                     type: custom:mushroom-template-card
-                    primary: "{{ state_attr(config.entity, 'friendly_name') }}"
+                    entity: this.entity_id
+                    primary: "{{ state_attr('this.entity_id', 'friendly_name') | replace('ParentOS ', '') }}"
                     secondary: >-
-                      {{ states(config.entity) | title }}
-                      {% if state_attr(config.entity, 'age') %}
-                      · Age {{ state_attr(config.entity, 'age') }}{% endif %}
+                      {{ states('this.entity_id') | title }}
+                      {% if state_attr('this.entity_id', 'age') %}
+                      · Age {{ state_attr('this.entity_id', 'age') }}{% endif %}
                     icon: mdi:account
                     icon_color: >-
-                      {% if states(config.entity) == 'healthy' %}green
-                      {% elif states(config.entity) == 'sick' %}red
+                      {% if states('this.entity_id') == 'healthy' %}green
+                      {% elif states('this.entity_id') == 'sick' %}red
                       {% else %}grey{% endif %}
                     layout: horizontal
-                    entity: this.entity_id
                 - entity_id: "sensor.parentos_*"
                   attributes:
                     role: "child"
                   options:
                     type: custom:mushroom-template-card
-                    primary: "{{ state_attr(config.entity, 'friendly_name') }}"
+                    entity: this.entity_id
+                    primary: "{{ state_attr('this.entity_id', 'friendly_name') | replace('ParentOS ', '') }}"
                     secondary: >-
-                      {{ states(config.entity) | title }}
-                      {% if state_attr(config.entity, 'age') %}
-                      · Age {{ state_attr(config.entity, 'age') }}{% endif %}
+                      {{ states('this.entity_id') | title }}
+                      {% if state_attr('this.entity_id', 'age') %}
+                      · Age {{ state_attr('this.entity_id', 'age') }}{% endif %}
                     icon: mdi:account-child
                     icon_color: >-
-                      {% if states(config.entity) == 'healthy' %}green
-                      {% elif states(config.entity) == 'sick' %}red
+                      {% if states('this.entity_id') == 'healthy' %}green
+                      {% elif states('this.entity_id') == 'sick' %}red
                       {% else %}amber{% endif %}
                     layout: horizontal
-                    entity: this.entity_id
             sort:
               method: name
             show_empty: false
