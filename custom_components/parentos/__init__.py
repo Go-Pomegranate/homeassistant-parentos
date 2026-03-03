@@ -4,6 +4,7 @@ from __future__ import annotations
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import DOMAIN, LOGGER
 from .coordinator import ParentOSCoordinator
@@ -19,7 +20,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ParentOSConfigEntry) -> 
     client = ParentOSApiClient(
         api_url=entry.data["api_url"],
         api_token=entry.data["api_token"],
-        session=hass.helpers.aiohttp_client.async_get_clientsession(hass),
+        session=async_get_clientsession(hass),
     )
 
     coordinator = ParentOSCoordinator(hass=hass, client=client)
