@@ -10,7 +10,7 @@ from .const import DOMAIN, LOGGER
 from .coordinator import ParentOSCoordinator
 from .api import ParentOSApiClient
 
-PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.CALENDAR]
+PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.CALENDAR, Platform.TODO]
 
 type ParentOSConfigEntry = ConfigEntry[ParentOSCoordinator]
 

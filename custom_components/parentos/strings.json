@@ -44,6 +44,9 @@
       "finance_engagement": { "name": "Finance Tracking" },
       "tasks_overdue": { "name": "Overdue Tasks" },
       "tasks_pending_today": { "name": "Tasks Today" }
+    },
+    "todo": {
+      "shopping_list": { "name": "Shopping List" }
     }
   }
 }

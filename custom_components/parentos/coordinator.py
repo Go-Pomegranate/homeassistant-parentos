@@ -1,6 +1,7 @@
 """DataUpdateCoordinator for ParentOS."""
 from __future__ import annotations
 
+import asyncio
 from datetime import timedelta
 from typing import Any
 
@@ -26,12 +27,29 @@ class ParentOSCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.client = client
 
     async def _async_update_data(self) -> dict[str, Any]:
-        """Fetch snapshot from ParentOS API."""
+        """Fetch snapshot and shopping lists from ParentOS API."""
         try:
-            return await self.client.async_get_snapshot()
+            snapshot, shopping_lists = await asyncio.gather(
+                self.client.async_get_snapshot(),
+                self._fetch_shopping_lists(),
+            )
+            snapshot["shopping_lists"] = shopping_lists
+            return snapshot
         except ParentOSAuthError as err:
             raise ConfigEntryAuthFailed(
                 "Developer token is invalid or expired"
             ) from err
         except ParentOSApiError as err:
             raise UpdateFailed(f"Error fetching ParentOS data: {err}") from err
+
+    async def _fetch_shopping_lists(self) -> list[dict[str, Any]]:
+        """Fetch shopping lists, gracefully returning empty on scope errors."""
+        try:
+            result = await self.client.async_get_shopping_lists()
+            return result.get("lists", [])
+        except ParentOSAuthError:
+            LOGGER.debug("Token lacks meals:read scope, skipping shopping lists")
+            return []
+        except ParentOSApiError:
+            LOGGER.debug("Failed to fetch shopping lists")
+            return []
