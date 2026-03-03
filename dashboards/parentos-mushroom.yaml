@@ -4,12 +4,11 @@
 # Prerequisites:
 #   - ParentOS integration installed and configured
 #   - Mushroom cards (HACS): https://github.com/piitaya/lovelace-mushroom
+#   - auto-entities (HACS): https://github.com/thomasloven/lovelace-auto-entities
 #   - Optional: card-mod (HACS) for advanced styling
 #
-# Entity prefix: sensor.parentos_*
-# Calendar: calendar.parentos_family_calendar
-# Shopping: todo.parentos_* (dynamic per list)
-# Family: sensor.parentos_{member_name} (dynamic per member)
+# All shopping lists and family members are discovered automatically.
+# No manual entity ID replacement needed.
 
 title: ParentOS
 views:
@@ -263,28 +262,69 @@ views:
               {% if s %}| Snack | {{ s }} |{% endif %}
 
       # ============================================================
-      # SECTION 6: Shopping Lists
+      # SECTION 6: Shopping Lists (auto-discovered)
       # ============================================================
-      # NOTE: Replace entity ID with your actual shopping list.
-      # Check Developer Tools → States → filter "todo.parentos"
       - title: Shopping
         type: grid
         cards:
-          - type: todo-list
-            entity: todo.parentos_grocery_list
+          - type: custom:auto-entities
+            card:
+              type: vertical-stack
+            card_param: cards
+            filter:
+              include:
+                - domain: todo
+                  entity_id: "todo.parentos_*"
+                  options:
+                    type: todo-list
+            sort:
+              method: name
+            show_empty: false
 
       # ============================================================
-      # SECTION 7: Family Members
+      # SECTION 7: Family Members (auto-discovered)
       # ============================================================
-      # NOTE: Family member sensors are dynamic — one per member.
-      # Replace entity IDs below with your actual members.
-      # Check Developer Tools → States → filter "sensor.parentos"
-      # Example for a family with 2 parents + 2 kids:
       - title: Family
         type: grid
         cards:
-          - type: markdown
-            content: >-
-              **Tip:** Replace this card with `mushroom-person-card` entries
-              for each family member. Your member entities are listed in
-              **Developer Tools → States** (filter: `sensor.parentos_`).
+          - type: custom:auto-entities
+            card:
+              type: vertical-stack
+            card_param: cards
+            filter:
+              include:
+                - entity_id: "sensor.parentos_*"
+                  attributes:
+                    role: "admin"
+                  options:
+                    type: custom:mushroom-entity-card
+                    icon: mdi:shield-account
+                    icon_color: purple
+                    layout: horizontal
+                - entity_id: "sensor.parentos_*"
+                  attributes:
+                    role: "parent"
+                  options:
+                    type: custom:mushroom-entity-card
+                    icon: mdi:account
+                    icon_color: blue
+                    layout: horizontal
+                - entity_id: "sensor.parentos_*"
+                  attributes:
+                    role: "child"
+                  options:
+                    type: custom:mushroom-entity-card
+                    icon: mdi:account-child
+                    icon_color: amber
+                    layout: horizontal
+                - entity_id: "sensor.parentos_*"
+                  attributes:
+                    role: "guest"
+                  options:
+                    type: custom:mushroom-entity-card
+                    icon: mdi:account-outline
+                    icon_color: grey
+                    layout: horizontal
+            sort:
+              method: name
+            show_empty: false

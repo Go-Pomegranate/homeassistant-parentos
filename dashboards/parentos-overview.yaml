@@ -1,13 +1,12 @@
 # ParentOS Family Dashboard — Native HA Cards
 # Copy this into your Home Assistant dashboard (Raw Configuration Editor)
 #
-# Prerequisites: ParentOS integration installed and configured
-# Optional: Install "auto-entities" from HACS for dynamic card filtering
+# Prerequisites:
+#   - ParentOS integration installed and configured
+#   - auto-entities (HACS): https://github.com/thomasloven/lovelace-auto-entities
 #
-# Entity prefix: sensor.parentos_*
-# Calendar: calendar.parentos_family_calendar
-# Shopping: todo.parentos_* (dynamic per list)
-# Family: sensor.parentos_{member_name} (dynamic per member)
+# All shopping lists and family members are discovered automatically.
+# No manual entity ID replacement needed.
 
 title: ParentOS
 views:
@@ -187,31 +186,65 @@ views:
               {% endif %}
 
       # ============================================================
-      # SECTION 5: Shopping Lists
+      # SECTION 5: Shopping Lists (auto-discovered)
       # ============================================================
-      # NOTE: Shopping lists are created dynamically based on your
-      # ParentOS lists. Replace "todo.parentos_LISTNAME" with your
-      # actual entity IDs. Check Developer Tools → States for names.
       - title: Shopping
         type: grid
         cards:
-          - type: todo-list
-            entity: todo.parentos_grocery_list
-            # Replace with your actual shopping list entity ID
+          - type: custom:auto-entities
+            card:
+              type: vertical-stack
+            card_param: cards
+            filter:
+              include:
+                - domain: todo
+                  entity_id: "todo.parentos_*"
+                  options:
+                    type: todo-list
+            sort:
+              method: name
+            show_empty: false
 
       # ============================================================
-      # SECTION 6: Family Members
+      # SECTION 6: Family Members (auto-discovered)
       # ============================================================
-      # NOTE: Family member sensors are created dynamically.
-      # Replace entity IDs below with your actual family members.
-      # Check Developer Tools → States → filter "parentos_member"
       - title: Family
         type: grid
         cards:
-          - type: markdown
-            title: Family Members
-            content: >-
-              Check **Developer Tools → States** and filter for
-              `sensor.parentos_` to find your family member entities.
-              Replace the placeholder cards below with tile cards
-              for each member.
+          - type: custom:auto-entities
+            card:
+              type: vertical-stack
+            card_param: cards
+            filter:
+              include:
+                - entity_id: "sensor.parentos_*"
+                  attributes:
+                    role: "admin"
+                  options:
+                    type: tile
+                    icon: mdi:shield-account
+                    color: purple
+                - entity_id: "sensor.parentos_*"
+                  attributes:
+                    role: "parent"
+                  options:
+                    type: tile
+                    icon: mdi:account
+                    color: blue
+                - entity_id: "sensor.parentos_*"
+                  attributes:
+                    role: "child"
+                  options:
+                    type: tile
+                    icon: mdi:account-child
+                    color: amber
+                - entity_id: "sensor.parentos_*"
+                  attributes:
+                    role: "guest"
+                  options:
+                    type: tile
+                    icon: mdi:account-outline
+                    color: grey
+            sort:
+              method: name
+            show_empty: false
