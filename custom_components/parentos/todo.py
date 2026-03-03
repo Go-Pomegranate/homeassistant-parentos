@@ -5,17 +5,20 @@ auto-removed — no HA restart needed. Pattern inspired by ha-listonic.
 """
 from __future__ import annotations
 
+from datetime import timedelta
+
 from homeassistant.components.todo import (
     TodoItem,
     TodoItemStatus,
     TodoListEntity,
     TodoListEntityFeature,
 )
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import ParentOSConfigEntry
@@ -24,6 +27,7 @@ from .const import ATTRIBUTION, DOMAIN, LOGGER
 from .coordinator import ParentOSCoordinator
 
 _MAX_SHOPPING_LISTS = 30
+_ITEMS_REFRESH_INTERVAL = timedelta(seconds=60)
 
 
 async def async_setup_entry(
@@ -121,6 +125,7 @@ class ParentOSShoppingList(
             configuration_url="https://app.parentos.ai",
         )
         self._items: list[TodoItem] = []
+        self._unsub_interval: CALLBACK_TYPE | None = None
 
     @property
     def todo_items(self) -> list[TodoItem] | None:
@@ -128,9 +133,26 @@ class ParentOSShoppingList(
         return self._items
 
     async def async_added_to_hass(self) -> None:
-        """Fetch items when entity is added."""
+        """Fetch items and start fast polling timer."""
         await super().async_added_to_hass()
         await self._async_refresh_items()
+
+        # Fast-poll items every 60s (independent of 5-min coordinator)
+        self._unsub_interval = async_track_time_interval(
+            self.hass, self._async_interval_refresh, _ITEMS_REFRESH_INTERVAL
+        )
+
+    async def async_will_remove_from_hass(self) -> None:
+        """Clean up fast polling timer."""
+        if self._unsub_interval:
+            self._unsub_interval()
+            self._unsub_interval = None
+        await super().async_will_remove_from_hass()
+
+    @callback
+    def _async_interval_refresh(self, _now: object = None) -> None:
+        """Trigger item refresh from timer."""
+        self.hass.async_create_task(self._async_refresh_items())
 
     def _handle_coordinator_update(self) -> None:
         """Schedule item refresh when coordinator updates."""
