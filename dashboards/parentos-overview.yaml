@@ -57,10 +57,10 @@ views:
 
           # Pace Trend
           - type: tile
-            entity: sensor.parentos_baseline_trend
+            entity: sensor.parentos_pace_trend
             name: Pace Trend
             icon: >-
-              {% set t = states('sensor.parentos_baseline_trend') %}
+              {% set t = states('sensor.parentos_pace_trend') %}
               {% if t == 'up' %}mdi:trending-up
               {% elif t == 'down' %}mdi:trending-down
               {% else %}mdi:trending-neutral{% endif %}
@@ -92,11 +92,11 @@ views:
                 color: orange
 
               - type: tile
-                entity: sensor.parentos_conflict_count
+                entity: sensor.parentos_calendar_conflicts
                 name: Conflicts
                 icon: mdi:calendar-alert
                 color: >-
-                  {% if states('sensor.parentos_conflict_count') | int > 0 %}red
+                  {% if states('sensor.parentos_calendar_conflicts') | int > 0 %}red
                   {% else %}green{% endif %}
 
           # Next Event
@@ -106,7 +106,7 @@ views:
             icon: mdi:calendar-arrow-right
 
           - type: entity
-            entity: sensor.parentos_next_event_minutes
+            entity: sensor.parentos_next_event_in
             name: Starts In
             icon: mdi:timer-outline
 
@@ -126,22 +126,22 @@ views:
           - type: horizontal-stack
             cards:
               - type: tile
-                entity: sensor.parentos_tasks_overdue
+                entity: sensor.parentos_overdue_tasks
                 name: Overdue
                 icon: mdi:clipboard-alert-outline
                 color: >-
-                  {% if states('sensor.parentos_tasks_overdue') | int > 0 %}red
+                  {% if states('sensor.parentos_overdue_tasks') | int > 0 %}red
                   {% else %}green{% endif %}
 
               - type: tile
-                entity: sensor.parentos_tasks_pending_today
+                entity: sensor.parentos_tasks_today
                 name: Today
                 icon: mdi:clipboard-list-outline
                 color: blue
 
           # Health
           - type: tile
-            entity: sensor.parentos_health_status
+            entity: sensor.parentos_health_tracking
             name: Health Tracking
             icon: mdi:heart-pulse
             color: pink
@@ -154,7 +154,7 @@ views:
 
           # Finance
           - type: tile
-            entity: sensor.parentos_finance_engagement
+            entity: sensor.parentos_finance_tracking
             name: Finance Tracking
             icon: mdi:cash-check
             color: green
